@@ -119,6 +119,16 @@ impl Sub for Vec3 {
         )
     }
 }
+impl Sub for &Vec3 {
+    type Output = Vec3;
+    fn sub(self, other: Self) -> Self::Output {
+        Vec3::new(
+            self.e[0] - other.e[0],
+            self.e[1] - other.e[1],
+            self.e[2] - other.e[2],
+        )
+    }
+}
 
 impl Mul for Vec3 {
     type Output = Self;

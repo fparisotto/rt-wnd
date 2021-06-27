@@ -57,11 +57,25 @@ fn main() {
 
     // World
     let mut world = HittableList::new();
+
+    // let material_left = Rc::new(Lambertian::new(Vec3::new(0.0, 0.0, 1.0)));
+    // let material_right = Rc::new(Lambertian::new(Vec3::new(1.0, 0.0, 0.0)));
+    // let R = (std::f64::consts::PI / 4.0).cos();
+    // world.add(Box::new(Sphere::new(
+    //     Vec3::new(-R, 0.0, -1.0),
+    //     R,
+    //     material_left.clone(),
+    // )));
+    // world.add(Box::new(Sphere::new(
+    //     Vec3::new(R, 0.0, -1.0),
+    //     R,
+    //     material_right.clone(),
+    // )));
+
     let material_ground = Rc::new(Lambertian::new(Vec3::new(0.8, 0.8, 0.0)));
     let material_center = Rc::new(Lambertian::new(Vec3::new(0.1, 0.2, 0.5)));
     let material_left = Rc::new(Dielectric::new(1.5));
     let material_right = Rc::new(Metal::new(Vec3::new(0.8, 0.6, 0.2), 0.0));
-
     world.add(Box::new(Sphere::new(
         Vec3::new(0.0, -100.5, -1.0),
         100.0,
@@ -89,7 +103,13 @@ fn main() {
     )));
 
     // Camera
-    let cam = Camera::new();
+    let cam = Camera::new(
+        &Vec3::new(-2.0, 2.0, 1.0),
+        &Vec3::new(0.0, 0.0, -1.0),
+        &Vec3::new(0.0, 1.0, 0.0),
+        20.0,
+        aspect_ratio,
+    );
 
     // Render
     println!("P3\n{} {}\n255\n", image_width, image_height);
