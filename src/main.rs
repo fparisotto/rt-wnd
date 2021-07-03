@@ -5,6 +5,7 @@ mod ray;
 mod sphere;
 mod vec3;
 
+extern crate num_cpus;
 use crate::camera::Camera;
 use crate::hittable::{Hittable, HittableList};
 use crate::material::{Dielectric, Lambertian, Metal};
@@ -12,7 +13,9 @@ use crate::ray::Ray;
 use crate::sphere::Sphere;
 use crate::vec3::Vec3;
 use rand::prelude::*;
-use std::rc::Rc;
+use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
+use std::thread;
 
 fn write_color(v: &Vec3, samples_per_pixel: u32) {
     let mut r = v.x();
@@ -50,8 +53,8 @@ fn ray_color(r: &Ray, world: &HittableList, depth: u32) -> Vec3 {
 fn random_scene() -> HittableList {
     let mut world = HittableList::new();
 
-    let material_ground = Rc::new(Lambertian::new(Vec3::new(0.5, 0.5, 0.5)));
-    world.add(Box::new(Sphere::new(
+    let material_ground = Arc::new(Lambertian::new(Vec3::new(0.5, 0.5, 0.5)));
+    world.add(Arc::new(Sphere::new(
         Vec3::new(0.0, -1000.0, 0.0),
         1000.0,
         material_ground,
@@ -70,37 +73,37 @@ fn random_scene() -> HittableList {
                 if choose_mat < 0.8 {
                     // difuse
                     let albedo = Vec3::random() * Vec3::random();
-                    let sphere_material = Rc::new(Lambertian::new(albedo));
-                    world.add(Box::new(Sphere::new(center, 0.2, sphere_material)));
+                    let sphere_material = Arc::new(Lambertian::new(albedo));
+                    world.add(Arc::new(Sphere::new(center, 0.2, sphere_material)));
                 } else if choose_mat < 0.95 {
                     // metal
                     let albedo = Vec3::random_range(0.5, 1.0);
                     let fuzz = rng.gen_range(0.0..0.5);
-                    let sphere_material = Rc::new(Metal::new(albedo, fuzz));
-                    world.add(Box::new(Sphere::new(center, 0.2, sphere_material)));
+                    let sphere_material = Arc::new(Metal::new(albedo, fuzz));
+                    world.add(Arc::new(Sphere::new(center, 0.2, sphere_material)));
                 } else {
                     // glass
-                    let sphere_material = Rc::new(Dielectric::new(1.5));
-                    world.add(Box::new(Sphere::new(center, 0.2, sphere_material)));
+                    let sphere_material = Arc::new(Dielectric::new(1.5));
+                    world.add(Arc::new(Sphere::new(center, 0.2, sphere_material)));
                 }
             }
         }
     }
 
-    let material1 = Rc::new(Dielectric::new(1.5));
-    world.add(Box::new(Sphere::new(
+    let material1 = Arc::new(Dielectric::new(1.5));
+    world.add(Arc::new(Sphere::new(
         Vec3::new(0.0, 1.0, 0.0),
         1.0,
         material1,
     )));
-    let material2 = Rc::new(Lambertian::new(Vec3::new(0.4, 0.2, 0.1)));
-    world.add(Box::new(Sphere::new(
+    let material2 = Arc::new(Lambertian::new(Vec3::new(0.4, 0.2, 0.1)));
+    world.add(Arc::new(Sphere::new(
         Vec3::new(-4.0, 1.0, 0.0),
         1.0,
         material2,
     )));
-    let material3 = Rc::new(Metal::new(Vec3::new(0.7, 0.6, 0.5), 0.0));
-    world.add(Box::new(Sphere::new(
+    let material3 = Arc::new(Metal::new(Vec3::new(0.7, 0.6, 0.5), 0.0));
+    world.add(Arc::new(Sphere::new(
         Vec3::new(4.0, 1.0, 0.0),
         1.0,
         material3,
@@ -116,6 +119,12 @@ fn main() {
     let image_height: u32 = (image_width as f64 / aspect_ratio) as u32;
     let samples_per_pixel = 500;
     let max_depth = 50;
+
+    // let aspect_ratio: f64 = 3.0 / 2.0;
+    // let image_width = 200;
+    // let image_height: u32 = (image_width as f64 / aspect_ratio) as u32;
+    // let samples_per_pixel = 10;
+    // let max_depth = 2;
 
     // World
     let world = random_scene();
@@ -139,21 +148,96 @@ fn main() {
     // Render
     println!("P3\n{} {}\n255\n", image_width, image_height);
 
+    // for j in (0..image_height).rev() {
+    //     eprintln!("Scanlines remaining: {}", j);
+    //     for i in 0..image_width {
+    //         let mut pixel_color: Vec3 = Vec3::empty();
+    //         for _ in 0..samples_per_pixel {
+    //             let u_rng: f64 = random();
+    //             let v_rng: f64 = random();
+    //             let u: f64 = (i as f64 + u_rng) / (image_width as f64 - 1.0);
+    //             let v: f64 = (j as f64 + v_rng) / (image_height as f64 - 1.0);
+    //             let r = cam.get_ray(u, v);
+    //             pixel_color += ray_color(&r, &world, max_depth);
+    //         }
+    //         write_color(&pixel_color, samples_per_pixel);
+    //     }
+    // }
+
+    let cam_arc = Arc::new(cam);
+    let world_arc = Arc::new(world);
+
+    let mut tasks: VecDeque<(u32, u32, u32)> = VecDeque::new();
+    let mut pixel_order: u32 = 0;
     for j in (0..image_height).rev() {
-        eprintln!("Scanlines remaining: {}", j);
         for i in 0..image_width {
-            let mut pixel_color: Vec3 = Vec3::empty();
-            for _ in 0..samples_per_pixel {
-                let u_rng: f64 = random();
-                let v_rng: f64 = random();
-                let u: f64 = (i as f64 + u_rng) / (image_width as f64 - 1.0);
-                let v: f64 = (j as f64 + v_rng) / (image_height as f64 - 1.0);
-                let r = cam.get_ray(u, v);
-                pixel_color += ray_color(&r, &world, max_depth);
-            }
-            write_color(&pixel_color, samples_per_pixel);
+            tasks.push_back((pixel_order, i, j));
+            pixel_order += 1;
         }
     }
 
+    let results = vec![Vec3::empty(); tasks.len()];
+    let results_mutex = Arc::new(Mutex::new(results));
+
+    let tasks_mutex = Arc::new(Mutex::new(tasks));
+
+    let mut handles: Vec<thread::JoinHandle<()>> = Vec::new();
+    for _ in 0..num_cpus::get() {
+        let tasks_clone = Arc::clone(&tasks_mutex);
+        let results_clone = Arc::clone(&results_mutex);
+        let cam_arc_clone = Arc::clone(&cam_arc);
+        let world_arc_clone = Arc::clone(&world_arc);
+        let handle = thread::spawn(move || loop {
+            match tasks_clone.lock().unwrap().pop_front() {
+                Some((index, i, j)) => {
+                    let pixel = render_pixel(
+                        samples_per_pixel,
+                        max_depth,
+                        image_width,
+                        image_height,
+                        i,
+                        j,
+                        cam_arc_clone.as_ref(),
+                        world_arc_clone.as_ref(),
+                    );
+                    let mut result_ref = results_clone.lock().unwrap();
+                    result_ref[index as usize] = pixel;
+                }
+                None => break,
+            }
+        });
+        handles.push(handle);
+    }
+
+    for h in handles {
+        h.join().unwrap();
+    }
+
+    for pixel in &*results_mutex.lock().unwrap() {
+        write_color(&pixel, samples_per_pixel);
+    }
+
     eprintln!("Done.");
+}
+
+fn render_pixel(
+    samples_per_pixel: u32,
+    max_depth: u32,
+    image_width: u32,
+    image_height: u32,
+    i: u32,
+    j: u32,
+    cam: &Camera,
+    world: &HittableList,
+) -> Vec3 {
+    let mut pixel_color: Vec3 = Vec3::empty();
+    for _ in 0..samples_per_pixel {
+        let u_rng: f64 = random();
+        let v_rng: f64 = random();
+        let u: f64 = (i as f64 + u_rng) / (image_width as f64 - 1.0);
+        let v: f64 = (j as f64 + v_rng) / (image_height as f64 - 1.0);
+        let r = cam.get_ray(u, v);
+        pixel_color += ray_color(&r, &world, max_depth);
+    }
+    return pixel_color;
 }
