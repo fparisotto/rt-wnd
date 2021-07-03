@@ -167,8 +167,8 @@ fn main() {
     let cam_arc = Arc::new(cam);
     let world_arc = Arc::new(world);
 
-    let mut tasks: VecDeque<(u32, u32, u32)> = VecDeque::new();
-    let mut pixel_order: u32 = 0;
+    let mut tasks: VecDeque<(usize, u32, u32)> = VecDeque::new();
+    let mut pixel_order: usize = 0;
     for j in (0..image_height).rev() {
         for i in 0..image_width {
             tasks.push_back((pixel_order, i, j));
@@ -188,7 +188,8 @@ fn main() {
         let cam_arc_clone = Arc::clone(&cam_arc);
         let world_arc_clone = Arc::clone(&world_arc);
         let handle = thread::spawn(move || loop {
-            match tasks_clone.lock().unwrap().pop_front() {
+            let task = { tasks_clone.lock().unwrap().pop_front() };
+            match task {
                 Some((index, i, j)) => {
                     let pixel = render_pixel(
                         samples_per_pixel,
@@ -201,7 +202,7 @@ fn main() {
                         world_arc_clone.as_ref(),
                     );
                     let mut result_ref = results_clone.lock().unwrap();
-                    result_ref[index as usize] = pixel;
+                    result_ref[index] = pixel;
                 }
                 None => break,
             }
