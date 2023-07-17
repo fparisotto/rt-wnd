@@ -43,15 +43,15 @@ impl Vec3 {
         Vec3::new(self.e[0], self.e[1], self.e[2]) / self.length()
     }
     pub fn random() -> Vec3 {
-        return Vec3::new(random(), random(), random());
+        Vec3::new(random(), random(), random())
     }
     pub fn random_range(min: f64, max: f64) -> Vec3 {
         let mut rng = thread_rng();
-        return Vec3::new(
+        Vec3::new(
             rng.gen_range(min..max),
             rng.gen_range(min..max),
             rng.gen_range(min..max),
-        );
+        )
     }
     pub fn random_in_unit_sphere() -> Vec3 {
         loop {
@@ -63,28 +63,28 @@ impl Vec3 {
         }
     }
     pub fn random_unit_vector() -> Vec3 {
-        return Vec3::random_in_unit_sphere().unit();
+        Vec3::random_in_unit_sphere().unit()
     }
     pub fn random_in_hemisphere(normal: &Vec3) -> Vec3 {
         let in_unit_sphere = Vec3::random_in_unit_sphere();
-        if Vec3::dot(&in_unit_sphere, &normal) > 0.0 {
-            return in_unit_sphere;
+        if Vec3::dot(&in_unit_sphere, normal) > 0.0 {
+            in_unit_sphere
         } else {
-            return -in_unit_sphere;
+            -in_unit_sphere
         }
     }
     pub fn near_zero(&self) -> bool {
         let s = 1e-8;
-        return self.e[0].abs() < s && self.e[1].abs() < s && self.e[2] < s;
+        self.e[0].abs() < s && self.e[1].abs() < s && self.e[2] < s
     }
     pub fn reflect(v: &Vec3, n: &Vec3) -> Vec3 {
-        return v.clone() - 2.0 * Vec3::dot(v, n) * n;
+        *v - 2.0 * Vec3::dot(v, n) * n
     }
     pub fn refract(uv: &Vec3, n: &Vec3, etai_over_etat: f64) -> Vec3 {
         let cos_theta = Vec3::dot(&-uv, n).min(1.0);
         let r_out_perp: Vec3 = etai_over_etat * (uv + &(cos_theta * n));
         let r_out_parallel = -(1.0 - r_out_perp.length_squared()).abs().sqrt() * n;
-        return r_out_perp + r_out_parallel;
+        r_out_perp + r_out_parallel
     }
     pub fn random_in_unit_disk() -> Vec3 {
         let mut rng = rand::thread_rng();

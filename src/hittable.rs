@@ -62,6 +62,6 @@ impl Hittable for HittableList {
                 hit_anything = Some(hit)
             }
         }
-        return hit_anything;
+        hit_anything
     }
 }

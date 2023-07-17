@@ -31,20 +31,20 @@ fn write_color(v: &Vec3, samples_per_pixel: u32) {
 }
 
 fn ray_color(r: &Ray, world: &HittableList, depth: u32) -> Vec3 {
-    if depth <= 0 {
+    if depth == 0 {
         return Vec3::empty();
     }
     if let Some(rec) = world.hit(r, 0.001, std::f64::INFINITY) {
         if let Some(mat) = rec.mat_ptr.as_ref() {
-            if let Some(scatter_rec) = mat.scatter(&r, &rec) {
+            if let Some(scatter_rec) = mat.scatter(r, &rec) {
                 return scatter_rec.attenuation
-                    * ray_color(&scatter_rec.scattered, &world, depth - 1);
+                    * ray_color(&scatter_rec.scattered, world, depth - 1);
             }
         }
     }
     let unit_direction = r.direction.unit();
     let t = 0.5 * (unit_direction.y() + 1.0);
-    return (1.0 - t) * Vec3::new(1.0, 1.0, 1.0) + t * Vec3::new(0.5, 0.7, 1.0);
+    (1.0 - t) * Vec3::new(1.0, 1.0, 1.0) + t * Vec3::new(0.5, 0.7, 1.0)
 }
 
 fn random_scene() -> HittableList {
@@ -106,16 +106,16 @@ fn random_scene() -> HittableList {
         material3,
     )));
 
-    return world;
+    world
 }
 
 fn main() {
     // Image
     let aspect_ratio: f64 = 3.0 / 2.0;
-    let image_width = 1200;
+    let image_width = 400;
     let image_height: u32 = (image_width as f64 / aspect_ratio) as u32;
-    let samples_per_pixel = 500;
-    let max_depth = 50;
+    let samples_per_pixel = 200;
+    let max_depth = 10;
 
     // World
     let world = random_scene();

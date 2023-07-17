@@ -31,7 +31,7 @@ impl Camera {
         let u = Vec3::cross(vup, &w).unit();
         let v = Vec3::cross(&w, &u);
 
-        let origin: Vec3 = lookfrom.clone();
+        let origin: Vec3 = *lookfrom;
         let horizontal: Vec3 = focus_dist * viewport_width * u;
         let vertical: Vec3 = focus_dist * viewport_height * v;
         let lower_left_corner: Vec3 = origin - horizontal / 2.0 - vertical / 2.0 - focus_dist * w;
@@ -51,9 +51,9 @@ impl Camera {
     pub fn get_ray(&self, s: f64, t: f64) -> Ray {
         let rd = self.lens_radius * Vec3::random_in_unit_disk();
         let offset = self.u * rd.x() + self.v * rd.y();
-        return Ray::new(
+        Ray::new(
             self.origin + offset,
             self.lower_left_corner + s * self.horizontal + t * self.vertical - self.origin - offset,
-        );
+        )
     }
 }

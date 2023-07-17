@@ -21,6 +21,7 @@ impl Lambertian {
         Lambertian { albedo: a }
     }
 }
+
 impl Material for Lambertian {
     fn scatter(&self, _: &Ray, rec: &HitRecord) -> Option<ScatterRecord> {
         let mut scatter_direction = rec.normal + Vec3::random_unit_vector();
@@ -52,7 +53,7 @@ impl Material for Metal {
         if Vec3::dot(&scattered.direction, &rec.normal) > 0.0 {
             Some(ScatterRecord {
                 attenuation: self.albedo,
-                scattered: scattered,
+                scattered,
             })
         } else {
             None
@@ -63,6 +64,7 @@ impl Material for Metal {
 pub struct Dielectric {
     ir: f64, // Index of Refraction
 }
+
 impl Dielectric {
     pub fn new(ir: f64) -> Dielectric {
         Dielectric { ir }
@@ -71,7 +73,7 @@ impl Dielectric {
         // Use Schlick's approximation for reflectance
         let mut r0 = (1.0 - ref_idx) / (1.0 + ref_idx);
         r0 = r0 * r0;
-        return r0 + (1.0 - r0) * (1.0 - cosine).powf(5.0);
+        r0 + (1.0 - r0) * (1.0 - cosine).powf(5.0)
     }
 }
 
@@ -92,9 +94,9 @@ impl Material for Dielectric {
             } else {
                 Vec3::refract(&unit_direction, &rec.normal, refraction_ratio)
             };
-        return Some(ScatterRecord {
+        Some(ScatterRecord {
             attenuation: Vec3::new(1.0, 1.0, 1.0),
             scattered: Ray::new(rec.p, direction),
-        });
+        })
     }
 }
