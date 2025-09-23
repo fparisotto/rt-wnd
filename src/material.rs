@@ -1,7 +1,7 @@
 use crate::hittable::HitRecord;
 use crate::ray::Ray;
 use crate::vec3::Vec3;
-use rand::prelude::*;
+use rand::random;
 
 pub struct ScatterRecord {
     pub attenuation: Vec3,

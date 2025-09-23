@@ -3,7 +3,7 @@ use crate::material::Materials;
 use crate::sphere::Sphere;
 use crate::vec3::Vec3;
 
-use rand::prelude::*;
+use rand::{random, Rng};
 
 pub fn random_scene() -> HittableList {
     let mut world = HittableList::new();
@@ -17,7 +17,7 @@ pub fn random_scene() -> HittableList {
         material_ground,
     ));
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     for a in -11..11 {
         for b in -11..11 {
@@ -35,7 +35,7 @@ pub fn random_scene() -> HittableList {
                 } else if choose_mat < 0.95 {
                     // metal
                     let albedo = Vec3::random_range(0.5, 1.0);
-                    let fuzz = rng.gen_range(0.0..0.5);
+                    let fuzz = rng.random_range(0.0..0.5);
                     let sphere_material = Materials::Metal { albedo, fuzz };
                     world.add_sphere(Sphere::new(center, 0.2, sphere_material));
                 } else {

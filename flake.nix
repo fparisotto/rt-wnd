@@ -2,10 +2,15 @@
   description = "rt-wnd";
 
   inputs = {
-    nixpkgs.url = github:NixOS/nixpkgs/nixos-unstable;
-    flake-utils.url = github:numtide/flake-utils;
-
-    rust-overlay.url = github:oxalica/rust-overlay;
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    flake-utils = {
+      url = "github:numtide/flake-utils";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = { self, nixpkgs, rust-overlay, flake-utils, ... }:
@@ -41,11 +46,9 @@
           '';
         };
 
-        packages.default = pkgs.rustPlatform.buildRustPackage rec {
+        packages.default = pkgs.rustPlatform.buildRustPackage {
           name = "rt-wnd";
-
           src = ./.;
-
           cargoLock = {
             lockFile = ./Cargo.lock;
           };

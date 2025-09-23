@@ -2,6 +2,8 @@ use rand::prelude::*;
 use std::fmt::Display;
 use std::ops::{Add, AddAssign, Div, DivAssign, Index, Mul, MulAssign, Neg, Sub};
 
+use rand::random;
+
 #[derive(Debug, Clone, Copy)]
 pub struct Vec3 {
     e: [f64; 3],
@@ -46,11 +48,11 @@ impl Vec3 {
         Vec3::new(random(), random(), random())
     }
     pub fn random_range(min: f64, max: f64) -> Vec3 {
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
         Vec3::new(
-            rng.gen_range(min..max),
-            rng.gen_range(min..max),
-            rng.gen_range(min..max),
+            rng.random_range(min..max),
+            rng.random_range(min..max),
+            rng.random_range(min..max),
         )
     }
     pub fn random_in_unit_sphere() -> Vec3 {
@@ -87,9 +89,13 @@ impl Vec3 {
         r_out_perp + r_out_parallel
     }
     pub fn random_in_unit_disk() -> Vec3 {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         loop {
-            let p = Vec3::new(rng.gen_range(-1.0..1.0), rng.gen_range(-1.0..1.0), 0.0);
+            let p = Vec3::new(
+                rng.random_range(-1.0..1.0),
+                rng.random_range(-1.0..1.0),
+                0.0,
+            );
             if p.length_squared() >= 1.0 {
                 continue;
             }

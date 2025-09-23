@@ -5,7 +5,7 @@ use crate::{
     ray::Ray,
     vec3::Vec3,
 };
-use rand::prelude::*;
+use rand::random;
 
 pub fn render_pixel(
     (x, y): (u32, u32),

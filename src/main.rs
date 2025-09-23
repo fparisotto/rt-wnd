@@ -13,16 +13,14 @@ use std::thread;
 use crate::camera::Camera;
 use crate::vec3::Vec3;
 
+use anyhow::anyhow;
 use rand::prelude::*;
 use rayon::prelude::*;
 use winit::dpi::PhysicalSize;
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
-use winit::window::WindowBuilder;
 
-use anyhow::{anyhow, Result};
-
-fn main() -> Result<()> {
+fn main() -> anyhow::Result<()> {
     // Image
     let aspect_ratio: f64 = 3.0 / 2.0;
     let image_width = 1200;
@@ -56,7 +54,7 @@ fn main() -> Result<()> {
         }
     }
     // Shuffle the coordinates to make the rendering more interesting
-    coords.shuffle(&mut rand::thread_rng());
+    coords.shuffle(&mut rand::rng());
 
     let (sender, receive) = std::sync::mpsc::channel::<(Vec3, (u32, u32))>();
 
@@ -74,7 +72,7 @@ fn main() -> Result<()> {
         });
     });
 
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::new()?;
     let size = PhysicalSize::new(image_width, image_height);
     let window = WindowBuilder::new()
         .with_min_inner_size(size)
@@ -125,4 +123,5 @@ fn main() -> Result<()> {
             _ => {}
         }
     });
+    Ok(())
 }
