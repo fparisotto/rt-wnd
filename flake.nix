@@ -2,7 +2,7 @@
   description = "rt-wnd";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
     flake-utils = {
       url = "github:numtide/flake-utils";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -19,31 +19,33 @@
         overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs {
           inherit system overlays;
+          config.allowUnfree = true;
         };
+        rustToolchain = pkgs.rust-bin.stable.latest.default;
       in
       {
         devShells.default = pkgs.mkShell {
-          nativeBuildInputs = with pkgs; [
-            rust-bin.stable.latest.default
-            rust-analyzer
-            pkg-config
-            lld
+          buildInputs = [
+            rustToolchain
+            pkgs.rust-analyzer
+            pkgs.cmake
+            pkgs.clang
+            pkgs.wayland
+            pkgs.glfw
+            pkgs.libpulseaudio
+            pkgs.alsa-lib
+            pkgs.sox
           ];
-
-          buildInputs = with pkgs; [
+          LD_LIBRARY_PATH = with pkgs; lib.makeLibraryPath [
             libGL
-            libxkbcommon
-            mesa
-            wayland
-            xorg.libX11
+            xorg.libXrandr
+            xorg.libXinerama
             xorg.libXcursor
             xorg.libXi
-            xorg.libXrandr
-            xorg.libxcb
+            pkgs.libpulseaudio
+            pkgs.alsa-lib
           ];
-          shellHook = ''
-            export LD_LIBRARY_PATH="${pkgs.xorg.libX11}/lib"
-          '';
+          LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";
         };
 
         packages.default = pkgs.rustPlatform.buildRustPackage {

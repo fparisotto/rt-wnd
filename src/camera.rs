@@ -14,9 +14,9 @@ pub struct Camera {
 
 impl Camera {
     pub fn new(
-        lookfrom: &Vec3,
-        lookat: &Vec3,
-        vup: &Vec3,
+        lookfrom: Vec3,
+        lookat: Vec3,
+        vup: Vec3,
         vfov: f64,
         aspect_ratio: f64,
         aperture: f64,
@@ -28,10 +28,10 @@ impl Camera {
         let viewport_width = aspect_ratio * viewport_height;
 
         let w = (lookfrom - lookat).unit();
-        let u = Vec3::cross(vup, &w).unit();
-        let v = Vec3::cross(&w, &u);
+        let u = Vec3::cross(vup, w).unit();
+        let v = Vec3::cross(w, u);
 
-        let origin: Vec3 = *lookfrom;
+        let origin: Vec3 = lookfrom;
         let horizontal: Vec3 = focus_dist * viewport_width * u;
         let vertical: Vec3 = focus_dist * viewport_height * v;
         let lower_left_corner: Vec3 = origin - horizontal / 2.0 - vertical / 2.0 - focus_dist * w;

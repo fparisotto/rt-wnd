@@ -22,7 +22,7 @@ pub fn render_pixel(
         let u: f64 = (x as f64 + u_rng) / (width as f64 - 1.0);
         let v: f64 = (y as f64 + v_rng) / (height as f64 - 1.0);
         let r = cam.get_ray(u, v);
-        pixel_color += ray_color(&r, world, max_depth);
+        pixel_color += ray_color(r, world, max_depth);
     }
     let scale = 1.0 / samples_per_pixel as f64;
     let r = (scale * pixel_color.x()).sqrt();
@@ -31,17 +31,15 @@ pub fn render_pixel(
     Vec3::new(r, g, b)
 }
 
-fn ray_color(r: &Ray, world: &HittableList, depth: u32) -> Vec3 {
+fn ray_color(r: Ray, world: &HittableList, depth: u32) -> Vec3 {
     if depth == 0 {
         return Vec3::empty();
     }
-    if let Some(rec) = world.hit(r, 0.001, std::f64::INFINITY) {
-        if let Some(mat) = &rec.mat {
-            if let Some(scatter_rec) = mat.scatter(r, &rec) {
-                return scatter_rec.attenuation
-                    * ray_color(&scatter_rec.scattered, world, depth - 1);
-            }
-        }
+    if let Some(rec) = world.hit(r, 0.001, f64::INFINITY)
+        && let Some(mat) = &rec.mat
+        && let Some(scatter_rec) = mat.scatter(r, &rec)
+    {
+        return scatter_rec.attenuation * ray_color(scatter_rec.scattered, world, depth - 1);
     }
     let unit_direction = r.direction.unit();
     let t = 0.5 * (unit_direction.y() + 1.0);

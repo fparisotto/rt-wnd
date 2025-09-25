@@ -3,7 +3,7 @@ use crate::material::Materials;
 use crate::sphere::Sphere;
 use crate::vec3::Vec3;
 
-use rand::{random, Rng};
+use rand::{Rng, random};
 
 pub fn random_scene() -> HittableList {
     let mut world = HittableList::new();
