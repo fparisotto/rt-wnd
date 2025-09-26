@@ -5,12 +5,12 @@ use crate::vec3::Vec3;
 
 pub struct Sphere {
     center: Vec3,
-    radius: f64,
+    radius: f32,
     mat: Materials,
 }
 
 impl Sphere {
-    pub fn new(center: Vec3, radius: f64, m: Materials) -> Sphere {
+    pub fn new(center: Vec3, radius: f32, m: Materials) -> Sphere {
         Sphere {
             center,
             radius,
@@ -20,7 +20,7 @@ impl Sphere {
 }
 
 impl Hittable for Sphere {
-    fn hit(&self, r: Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+    fn hit(&self, r: Ray, t_min: f32, t_max: f32) -> Option<HitRecord<'_>> {
         let oc = r.origin - self.center;
         let a = r.direction.length_squared();
         let half_b = Vec3::dot(oc, r.direction);
@@ -39,12 +39,21 @@ impl Hittable for Sphere {
                 return None;
             }
         }
-        let mut rec = HitRecord::empty();
-        rec.t = root;
-        rec.p = r.at(rec.t);
-        let outward_normal = (rec.p - self.center) / self.radius;
-        rec.set_face_normal(r, outward_normal);
-        rec.mat = Some(self.mat.clone());
-        Some(rec)
+        let t = root;
+        let p = r.at(t);
+        let outward_normal = (p - self.center) / self.radius;
+        let front_face = Vec3::dot(r.direction, outward_normal) < 0.0;
+        let normal = if front_face {
+            outward_normal
+        } else {
+            -outward_normal
+        };
+        Some(HitRecord {
+            p,
+            normal,
+            mat: Some(&self.mat),
+            t,
+            front_face,
+        })
     }
 }

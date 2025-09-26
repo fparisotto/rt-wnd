@@ -15,19 +15,28 @@ pub fn render_pixel(
     max_depth: u32,
     samples_per_pixel: u32,
 ) -> Vec3 {
-    let mut pixel_color: Vec3 = Vec3::empty();
+    let mut pixel_color = Vec3::empty();
+    let width_minus_one = width as f32 - 1.0;
+    let height_minus_one = height as f32 - 1.0;
+    let x_f32 = x as f32;
+    let y_f32 = y as f32;
+
     for _ in 0..samples_per_pixel {
-        let u_rng: f64 = random();
-        let v_rng: f64 = random();
-        let u: f64 = (x as f64 + u_rng) / (width as f64 - 1.0);
-        let v: f64 = (y as f64 + v_rng) / (height as f64 - 1.0);
+        let u_rng: f32 = random();
+        let v_rng: f32 = random();
+        let u = (x_f32 + u_rng) / width_minus_one;
+        let v = (y_f32 + v_rng) / height_minus_one;
         let r = cam.get_ray(u, v);
         pixel_color += ray_color(r, world, max_depth);
     }
-    let scale = 1.0 / samples_per_pixel as f64;
-    let r = (scale * pixel_color.x()).sqrt();
-    let g = (scale * pixel_color.y()).sqrt();
-    let b = (scale * pixel_color.z()).sqrt();
+
+    let scale = 1.0 / samples_per_pixel as f32;
+    pixel_color *= scale;
+
+    // Apply gamma correction in place
+    let r = pixel_color.x().sqrt();
+    let g = pixel_color.y().sqrt();
+    let b = pixel_color.z().sqrt();
     Vec3::new(r, g, b)
 }
 
@@ -35,7 +44,7 @@ fn ray_color(r: Ray, world: &HittableList, depth: u32) -> Vec3 {
     if depth == 0 {
         return Vec3::empty();
     }
-    if let Some(rec) = world.hit(r, 0.001, f64::INFINITY)
+    if let Some(rec) = world.hit(r, 0.001, f32::INFINITY)
         && let Some(mat) = &rec.mat
         && let Some(scatter_rec) = mat.scatter(r, &rec)
     {

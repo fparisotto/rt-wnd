@@ -21,10 +21,10 @@ pub fn random_scene() -> HittableList {
 
     for a in -11..11 {
         for b in -11..11 {
-            let choose_mat: f64 = random();
-            let rng_x: f64 = random();
-            let rng_z: f64 = random();
-            let center: Vec3 = Vec3::new(a as f64 + 0.9 * rng_x, 0.2, b as f64 + 0.9 * rng_z);
+            let choose_mat: f32 = random();
+            let rng_x: f32 = random();
+            let rng_z: f32 = random();
+            let center: Vec3 = Vec3::new(a as f32 + 0.9 * rng_x, 0.2, b as f32 + 0.9 * rng_z);
 
             if (center - Vec3::new(4.0, 0.2, 0.0)).length() > 0.9 {
                 if choose_mat < 0.8 {

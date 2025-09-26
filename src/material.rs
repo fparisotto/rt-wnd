@@ -15,8 +15,8 @@ pub trait Material {
 #[derive(Clone)]
 pub enum Materials {
     Lambertian { albedo: Vec3 },
-    Metal { albedo: Vec3, fuzz: f64 },
-    Dielectric { ir: f64 },
+    Metal { albedo: Vec3, fuzz: f32 },
+    Dielectric { ir: f32 },
 }
 
 impl Material for Materials {
@@ -40,7 +40,7 @@ fn lambertian_scatter(albedo: Vec3, _: Ray, rec: &HitRecord) -> Option<ScatterRe
     })
 }
 
-fn metal_scatter(albedo: Vec3, fuzz: f64, r_in: Ray, rec: &HitRecord) -> Option<ScatterRecord> {
+fn metal_scatter(albedo: Vec3, fuzz: f32, r_in: Ray, rec: &HitRecord) -> Option<ScatterRecord> {
     let reflected = Vec3::reflect(r_in.direction.unit(), rec.normal);
     let scattered = Ray::new(rec.p, reflected + fuzz * Vec3::random_in_unit_sphere());
     if Vec3::dot(scattered.direction, rec.normal) > 0.0 {
@@ -53,7 +53,7 @@ fn metal_scatter(albedo: Vec3, fuzz: f64, r_in: Ray, rec: &HitRecord) -> Option<
     }
 }
 
-fn dielectric_scatter(ir: f64, r_in: Ray, rec: &HitRecord) -> Option<ScatterRecord> {
+fn dielectric_scatter(ir: f32, r_in: Ray, rec: &HitRecord) -> Option<ScatterRecord> {
     let refraction_ratio = if rec.front_face { 1.0 / ir } else { ir };
     let unit_direction = r_in.direction.unit();
     let cos_theta = Vec3::dot(-unit_direction, rec.normal).min(1.0);
