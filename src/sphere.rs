@@ -5,7 +5,10 @@ use crate::vec3::Vec3;
 
 pub struct Sphere {
     center: Vec3,
+    #[allow(dead_code)]
     radius: f32,
+    radius_squared: f32,
+    inv_radius: f32,
     mat: Materials,
 }
 
@@ -14,6 +17,8 @@ impl Sphere {
         Sphere {
             center,
             radius,
+            radius_squared: radius * radius,
+            inv_radius: 1.0 / radius,
             mat: m,
         }
     }
@@ -24,24 +29,26 @@ impl Hittable for Sphere {
         let oc = r.origin - self.center;
         let a = r.direction.length_squared();
         let half_b = Vec3::dot(oc, r.direction);
-        let c = oc.length_squared() - self.radius * self.radius;
+        let c = oc.length_squared() - self.radius_squared;
 
         let discriminant = half_b * half_b - a * c;
         if discriminant < 0.0 {
             return None;
         }
-        let sqrt = discriminant.sqrt();
 
-        let mut root = (-half_b - sqrt) / a;
+        let sqrt_discriminant = discriminant.sqrt();
+        let inv_a = 1.0 / a;
+
+        let mut root = (-half_b - sqrt_discriminant) * inv_a;
         if root < t_min || t_max < root {
-            root = (-half_b + sqrt) / a;
+            root = (-half_b + sqrt_discriminant) * inv_a;
             if root < t_min || t_max < root {
                 return None;
             }
         }
         let t = root;
         let p = r.at(t);
-        let outward_normal = (p - self.center) / self.radius;
+        let outward_normal = (p - self.center) * self.inv_radius; // Use pre-computed inverse radius
         let front_face = Vec3::dot(r.direction, outward_normal) < 0.0;
         let normal = if front_face {
             outward_normal

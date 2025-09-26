@@ -1,28 +1,41 @@
+use rand::SeedableRng;
 use rand::prelude::*;
 use rand::rngs::SmallRng;
-use rand::SeedableRng;
 use std::cell::RefCell;
 use std::ops::{Add, AddAssign, Div, DivAssign, Index, Mul, MulAssign, Neg, Sub, SubAssign};
+use std::time::{SystemTime, UNIX_EPOCH};
 
-#[repr(C)]
+#[repr(C, align(16))]
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Vec3 {
     e: [f32; 3],
+    _pad: f32,
 }
 
 thread_local! {
-    static RNG: RefCell<SmallRng> = RefCell::new(SmallRng::seed_from_u64(42));
+    static RNG: RefCell<SmallRng> = RefCell::new(SmallRng::seed_from_u64(
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos() as u64
+    ));
 }
 
 impl Vec3 {
-    pub const ZERO: Vec3 = Vec3 { e: [0.0, 0.0, 0.0] };
+    pub const ZERO: Vec3 = Vec3 {
+        e: [0.0, 0.0, 0.0],
+        _pad: 0.0,
+    };
 
     pub const fn empty() -> Vec3 {
         Self::ZERO
     }
 
     pub const fn new(x: f32, y: f32, z: f32) -> Vec3 {
-        Vec3 { e: [x, y, z] }
+        Vec3 {
+            e: [x, y, z],
+            _pad: 0.0,
+        }
     }
 
     #[inline]
@@ -51,6 +64,20 @@ impl Vec3 {
 
     #[inline]
     #[must_use]
+    pub fn inv_length(self) -> f32 {
+        self.inv_sqrt(self.length_squared())
+    }
+
+    #[inline]
+    fn inv_sqrt(self, x: f32) -> f32 {
+        if x == 0.0 {
+            return 0.0;
+        }
+        1.0 / x.sqrt()
+    }
+
+    #[inline]
+    #[must_use]
     pub fn length_squared(self) -> f32 {
         self.e[0] * self.e[0] + self.e[1] * self.e[1] + self.e[2] * self.e[2]
     }
@@ -74,20 +101,9 @@ impl Vec3 {
     #[inline]
     #[must_use]
     pub fn unit(self) -> Vec3 {
-        let len = self.length();
-        if len > 0.0 {
-            self / len
-        } else {
-            self
-        }
-    }
-
-    #[inline]
-    #[must_use]
-    pub fn fast_unit(self) -> Vec3 {
-        let len_squared = self.length_squared();
-        if len_squared > 0.0 {
-            let inv_len = 1.0 / len_squared.sqrt();
+        let len_sq = self.length_squared();
+        if len_sq > 0.0 {
+            let inv_len = self.inv_sqrt(len_sq);
             self * inv_len
         } else {
             self
@@ -113,13 +129,18 @@ impl Vec3 {
     }
 
     pub fn random_in_unit_sphere() -> Vec3 {
-        loop {
-            let p = Vec3::random_range(-1.0, 1.0);
-            if p.length_squared() >= 1.0 {
-                continue;
+        RNG.with(|rng| {
+            let mut rng = rng.borrow_mut();
+            loop {
+                let x = rng.random_range(-1.0..1.0);
+                let y = rng.random_range(-1.0..1.0);
+                let z = rng.random_range(-1.0..1.0);
+                let len_sq = x * x + y * y + z * z;
+                if len_sq < 1.0 && len_sq > 1e-8 {
+                    return Vec3::new(x, y, z);
+                }
             }
-            return p;
-        }
+        })
     }
 
     pub fn random_unit_vector() -> Vec3 {
@@ -160,17 +181,9 @@ impl Vec3 {
     pub fn random_in_unit_disk() -> Vec3 {
         RNG.with(|rng| {
             let mut rng = rng.borrow_mut();
-            loop {
-                let p = Vec3::new(
-                    rng.random_range(-1.0..1.0),
-                    rng.random_range(-1.0..1.0),
-                    0.0,
-                );
-                if p.length_squared() >= 1.0 {
-                    continue;
-                }
-                return p;
-            }
+            let theta = rng.random::<f32>() * 2.0 * std::f32::consts::PI;
+            let r = rng.random::<f32>().sqrt();
+            Vec3::new(r * theta.cos(), r * theta.sin(), 0.0)
         })
     }
 }

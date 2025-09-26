@@ -16,22 +16,24 @@ pub fn render_pixel(
     samples_per_pixel: u32,
 ) -> Vec3 {
     let mut pixel_color = Vec3::empty();
-    let width_minus_one = width as f32 - 1.0;
-    let height_minus_one = height as f32 - 1.0;
+
+    // Pre-compute reciprocals and constants
+    let inv_width_minus_one = 1.0 / (width as f32 - 1.0);
+    let inv_height_minus_one = 1.0 / (height as f32 - 1.0);
     let x_f32 = x as f32;
     let y_f32 = y as f32;
+    let inv_samples = 1.0 / samples_per_pixel as f32;
 
     for _ in 0..samples_per_pixel {
         let u_rng: f32 = random();
         let v_rng: f32 = random();
-        let u = (x_f32 + u_rng) / width_minus_one;
-        let v = (y_f32 + v_rng) / height_minus_one;
+        let u = (x_f32 + u_rng) * inv_width_minus_one;
+        let v = (y_f32 + v_rng) * inv_height_minus_one;
         let r = cam.get_ray(u, v);
         pixel_color += ray_color(r, world, max_depth);
     }
 
-    let scale = 1.0 / samples_per_pixel as f32;
-    pixel_color *= scale;
+    pixel_color *= inv_samples;
 
     // Apply gamma correction in place
     let r = pixel_color.x().sqrt();

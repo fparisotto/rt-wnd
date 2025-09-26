@@ -46,10 +46,14 @@ fn main() -> anyhow::Result<()> {
         dist_to_focus,
     );
 
-    // Generate coordinates
-    let mut coords: Vec<(u32, u32)> = (0..image_width)
-        .flat_map(|x| (0..image_height).map(move |y| (x, y)))
-        .collect();
+    // Generate coordinates with better memory allocation
+    let total_pixels = (image_width * image_height) as usize;
+    let mut coords: Vec<(u32, u32)> = Vec::with_capacity(total_pixels);
+    for x in 0..image_width {
+        for y in 0..image_height {
+            coords.push((x, y));
+        }
+    }
     coords.shuffle(&mut rand::rng());
 
     let (sender, receiver) = mpsc::channel::<(Vec3, (u32, u32))>();
@@ -85,7 +89,6 @@ fn main() -> anyhow::Result<()> {
         .context("Failed to create initial texture")?;
 
     let mut pixels_rendered = 0;
-    let total_pixels = (image_width * image_height) as usize;
     let mut rendering_complete = false;
     let mut render_time: Option<std::time::Duration> = None;
     let mut last_texture_update = Instant::now();
@@ -108,7 +111,7 @@ fn main() -> anyhow::Result<()> {
 
         let time_for_update = last_texture_update.elapsed() >= UPDATE_INTERVAL;
         let just_completed = pixels_rendered >= total_pixels && !rendering_complete;
-        if time_for_update || just_completed {
+        if !rendering_complete && (time_for_update || just_completed) {
             texture = rl
                 .load_texture_from_image(&thread, &image)
                 .context("Failed to update texture")?;
