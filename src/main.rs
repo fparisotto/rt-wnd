@@ -7,26 +7,23 @@ mod scene;
 mod sphere;
 mod vec3;
 
-use std::num::NonZeroU32;
-use std::thread;
-
 use crate::camera::Camera;
 use crate::vec3::Vec3;
 
+use anyhow::Context;
 use rand::prelude::*;
+use raylib::prelude::*;
 use rayon::prelude::*;
-use winit::dpi::PhysicalSize;
-use winit::event::{Event, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoop};
-use winit::window::WindowBuilder;
+use std::fmt::Write;
+use std::sync::mpsc;
+use std::thread;
+use std::time::{Duration, Instant};
 
-use anyhow::{anyhow, Result};
-
-fn main() -> Result<()> {
+fn main() -> anyhow::Result<()> {
     // Image
-    let aspect_ratio: f64 = 3.0 / 2.0;
+    let aspect_ratio: f32 = 3.0 / 2.0;
     let image_width = 1200;
-    let image_height: u32 = (image_width as f64 / aspect_ratio) as u32;
+    let image_height: u32 = (image_width as f32 / aspect_ratio) as u32;
     let samples_per_pixel = 100;
     let max_depth = 10;
 
@@ -40,26 +37,30 @@ fn main() -> Result<()> {
     let dist_to_focus = 10.0;
     let aperture = 0.1;
     let camera = Camera::new(
-        &lookfrom,
-        &lookat,
-        &vup,
+        lookfrom,
+        lookat,
+        vup,
         20.0,
         aspect_ratio,
         aperture,
         dist_to_focus,
     );
 
-    let mut coords: Vec<(u32, u32)> = Vec::new();
+    // Generate coordinates with better memory allocation
+    let total_pixels = (image_width * image_height) as usize;
+    let mut coords: Vec<(u32, u32)> = Vec::with_capacity(total_pixels);
     for x in 0..image_width {
         for y in 0..image_height {
             coords.push((x, y));
         }
     }
-    // Shuffle the coordinates to make the rendering more interesting
-    coords.shuffle(&mut rand::thread_rng());
+    coords.shuffle(&mut rand::rng());
 
-    let (sender, receive) = std::sync::mpsc::channel::<(Vec3, (u32, u32))>();
+    let (sender, receiver) = mpsc::channel::<(Vec3, (u32, u32))>();
 
+    let render_start_time = Instant::now();
+
+    // Rendering thread
     thread::spawn(move || {
         coords.into_par_iter().for_each(|coords| {
             let pixel = render::render_pixel(
@@ -74,55 +75,81 @@ fn main() -> Result<()> {
         });
     });
 
-    let event_loop = EventLoop::new();
-    let size = PhysicalSize::new(image_width, image_height);
-    let window = WindowBuilder::new()
-        .with_min_inner_size(size)
-        .with_max_inner_size(size)
-        .with_resizable(false)
-        .build(&event_loop)?;
+    let (mut rl, thread) = raylib::init()
+        .width(image_width as i32)
+        .height(image_height as i32)
+        .title("RTWND")
+        .resizable()
+        .build();
+    rl.set_target_fps(60);
 
-    let context = unsafe { softbuffer::Context::new(&window) }
-        .map_err(|err| anyhow!("fail to create context, reason: {:?}", err))?;
-    let mut surface = unsafe { softbuffer::Surface::new(&context, &window) }
-        .map_err(|err| anyhow!("fail to create surface, reason: {:?}", err))?;
+    let mut image = Image::gen_image_color(image_width as i32, image_height as i32, Color::BLACK);
+    let mut texture = rl
+        .load_texture_from_image(&thread, &image)
+        .context("Failed to create initial texture")?;
 
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Poll;
-        match event {
-            Event::MainEventsCleared => {
-                let (width, height) = {
-                    let size = window.inner_size();
-                    (size.width, size.height)
-                };
+    let mut pixels_rendered = 0;
+    let mut rendering_complete = false;
+    let mut render_time: Option<std::time::Duration> = None;
+    let mut last_texture_update = Instant::now();
+    let mut text_buffer = String::with_capacity(64); // Reusable buffer for text
 
-                surface
-                    .resize(
-                        NonZeroU32::new(width).expect("no width"),
-                        NonZeroU32::new(height).expect("no height"),
-                    )
-                    .expect("resize works");
+    const UPDATE_INTERVAL: Duration = Duration::from_millis(100);
 
-                let mut buffer = surface.buffer_mut().expect("fetch window buffer");
-                for (pixel, (x, y)) in receive.try_iter() {
-                    let red = (256.0 * pixel.x().clamp(0.0, 0.999)) as u32;
-                    let green = (256.0 * pixel.y().clamp(0.0, 0.999)) as u32;
-                    let blue = (256.0 * pixel.z().clamp(0.0, 0.999)) as u32;
-                    let rgb = blue | (green << 8) | (red << 16);
-                    // the y axis is flipped
-                    let y = image_height - y - 1;
-                    let index = (y * image_width + x) as usize;
-                    buffer[index] = rgb;
-                }
-                buffer.present().expect("render not fail");
-            }
-            Event::WindowEvent {
-                window_id,
-                event: WindowEvent::CloseRequested,
-            } if window_id == window.id() => {
-                *control_flow = ControlFlow::Exit;
-            }
-            _ => {}
+    while !rl.window_should_close() {
+        for (pixel, (x, y)) in receiver.try_iter() {
+            let red = (256.0 * pixel.x().clamp(0.0, 0.999)) as u8;
+            let green = (256.0 * pixel.y().clamp(0.0, 0.999)) as u8;
+            let blue = (256.0 * pixel.z().clamp(0.0, 0.999)) as u8;
+
+            // flip y-axis for correct rendering
+            let y = image_height - y - 1;
+
+            image.draw_pixel(x as i32, y as i32, Color::new(red, green, blue, 255));
+            pixels_rendered += 1;
         }
-    });
+
+        let time_for_update = last_texture_update.elapsed() >= UPDATE_INTERVAL;
+        let just_completed = pixels_rendered >= total_pixels && !rendering_complete;
+        if !rendering_complete && (time_for_update || just_completed) {
+            texture = rl
+                .load_texture_from_image(&thread, &image)
+                .context("Failed to update texture")?;
+            last_texture_update = Instant::now();
+
+            if just_completed {
+                rendering_complete = true;
+                render_time = Some(render_start_time.elapsed());
+            }
+        }
+
+        let mut d = rl.begin_drawing(&thread);
+        d.clear_background(Color::BLACK);
+
+        d.draw_texture(&texture, 0, 0, Color::WHITE);
+
+        if rendering_complete {
+            if let Some(duration) = render_time {
+                let seconds = duration.as_secs();
+                let millis = duration.subsec_millis();
+                text_buffer.clear();
+                write!(
+                    &mut text_buffer,
+                    "Rendering complete! Time: {}.{:03}s",
+                    seconds, millis
+                )
+                .ok();
+                d.draw_text(&text_buffer, 10, 10, 20, Color::GREEN);
+            } else {
+                d.draw_text("Rendering complete!", 10, 10, 20, Color::GREEN);
+            }
+        } else {
+            let progress = (pixels_rendered as f32 / total_pixels as f32) * 100.0;
+            text_buffer.clear();
+            write!(&mut text_buffer, "Rendering: {:.1}%", progress).ok();
+            d.draw_text(&text_buffer, 10, 10, 20, Color::YELLOW);
+        }
+    }
+
+    Ok(())
 }
