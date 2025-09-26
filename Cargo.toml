@@ -2,7 +2,7 @@
 name = "rt-wnd"
 version = "0.1.0"
 authors = ["Fernando Luiz Parisotto <fernando.parisotto@gmail.com>"]
-edition = "2024"
+edition = "2021"
 
 [dependencies]
 anyhow = "1.0.100"
